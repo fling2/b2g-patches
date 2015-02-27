@@ -1,8 +1,8 @@
 diff --git a/gecko/dom/system/gonk/NetworkUtils.cpp b/gecko/dom/system/gonk/NetworkUtils.cpp
-index df438c5..c331ad2 100644
+index 64ced69..bed0661 100644
 --- a/gecko/dom/system/gonk/NetworkUtils.cpp
 +++ b/gecko/dom/system/gonk/NetworkUtils.cpp
-@@ -123,39 +123,42 @@ CommandFunc NetworkUtils::sWifiEnableChain[] = {
+@@ -138,40 +138,43 @@ const CommandFunc NetworkUtils::sWifiEnableChain[] = {
    NetworkUtils::tetheringStatus,
    NetworkUtils::startTethering,
    NetworkUtils::setDnsForwarders,
@@ -10,13 +10,14 @@ index df438c5..c331ad2 100644
    NetworkUtils::wifiTetheringSuccess
  };
  
- CommandFunc NetworkUtils::sWifiDisableChain[] = {
+ const CommandFunc NetworkUtils::sWifiDisableChain[] = {
    NetworkUtils::clearWifiTetherParms,
 +  NetworkUtils::clearAddrs,
    NetworkUtils::stopSoftAP,
    NetworkUtils::stopAccessPointDriver,
    NetworkUtils::wifiFirmwareReload,
    NetworkUtils::untetherInterface,
+   NetworkUtils::removeInterfaceFromLocalNetwork,
    NetworkUtils::preTetherInterfaceList,
    NetworkUtils::postTetherInterfaceList,
    NetworkUtils::disableNat,
@@ -25,7 +26,7 @@ index df438c5..c331ad2 100644
    NetworkUtils::wifiTetheringSuccess
  };
  
- CommandFunc NetworkUtils::sWifiFailChain[] = {
+ const CommandFunc NetworkUtils::sWifiFailChain[] = {
    NetworkUtils::clearWifiTetherParms,
 +  NetworkUtils::clearAddrs,
    NetworkUtils::stopSoftAP,
@@ -33,7 +34,7 @@ index df438c5..c331ad2 100644
    NetworkUtils::stopTethering
  };
  
- CommandFunc NetworkUtils::sWifiRetryChain[] = {
+ const CommandFunc NetworkUtils::sWifiRetryChain[] = {
    NetworkUtils::clearWifiTetherParms,
 +  NetworkUtils::clearAddrs,
    NetworkUtils::stopSoftAP,
@@ -45,27 +46,7 @@ index df438c5..c331ad2 100644
    NetworkUtils::setAccessPoint,
    NetworkUtils::startSoftAP,
    NetworkUtils::setInterfaceUp,
-@@ -230,18 +233,19 @@ CommandFunc NetworkUtils::sNetworkInterfaceDisableAlarmChain[] = {
-   NetworkUtils::networkInterfaceAlarmSuccess
- };
- 
- CommandFunc NetworkUtils::sNetworkInterfaceSetAlarmChain[] = {
-   NetworkUtils::setAlarm,
-   NetworkUtils::networkInterfaceAlarmSuccess
- };
- 
- CommandFunc NetworkUtils::sSetDnsChain[] = {
-+  NetworkUtils::flushDefaultInterface,
-   NetworkUtils::setDefaultInterface,
-   NetworkUtils::setInterfaceDns
- };
- 
- /**
-  * Helper function to get the mask from given prefix length.
-  */
- static uint32_t makeMask(const uint32_t prefixLength)
- {
-@@ -576,18 +580,27 @@ void NetworkUtils::createUpStream(CommandChain* aChain,
+@@ -642,18 +645,27 @@ void NetworkUtils::createUpStream(CommandChain* aChain,
  
  void NetworkUtils::startSoftAP(CommandChain* aChain,
                                 CommandCallback aCallback,
@@ -93,12 +74,12 @@ index df438c5..c331ad2 100644
  }
  
  void NetworkUtils::clearWifiTetherParms(CommandChain* aChain,
-@@ -845,18 +858,28 @@ void NetworkUtils::setDefaultInterface(CommandChain* aChain,
-                                        CommandCallback aCallback,
-                                        NetworkResultOptions& aResult)
- {
-   char command[MAX_COMMAND_SIZE];
-   snprintf(command, MAX_COMMAND_SIZE - 1, "resolver setdefaultif %s", GET_CHAR(mIfname));
+@@ -996,18 +1008,28 @@ void NetworkUtils::removeDefaultRoute(CommandChain* aChain,
+   // FIXME: (Bug 1121795) We only remove the first gateway to the default route.
+   //        For dual stack (ipv4/ipv6) device, one of the gateway would
+   //        not be added to the default route.
+   snprintf(command, MAX_COMMAND_SIZE - 1, "network route remove %d %s 0.0.0.0/0 %s",
+                     GET_FIELD(mNetId), GET_CHAR(mIfname), GET_CHAR(mGateways[0]));
  
    doCommand(command, aChain, aCallback);
  }
@@ -118,15 +99,35 @@ index df438c5..c331ad2 100644
                                     NetworkResultOptions& aResult)
  {
    char command[MAX_COMMAND_SIZE];
-   int written = snprintf(command, sizeof command, "resolver setifdns %s %s",
-                          GET_CHAR(mIfname), GET_CHAR(mDomain));
+   int written;
  
-   nsTArray<nsString>& dnses = GET_FIELD(mDnses);
+   if (SDK_VERSION >= 20) {
+     written = snprintf(command, sizeof command, "resolver setnetdns %d %s",
+@@ -1680,18 +1702,19 @@ CommandResult NetworkUtils::setDNS(NetworkParams& aOptions)
+       return -1;
+     }
+     aOptions.mNetId = netIdInfo.mNetId;
+     runChain(aOptions, COMMAND_CHAIN, setDnsFail);
+     return CommandResult::Pending();
+   }
+   if (SDK_VERSION >= 18) {
+     // JB, KK.
+     static CommandFunc COMMAND_CHAIN[] = {
++      flushDefaultInterface,
+       setDefaultInterface,
+       setInterfaceDns,
+       defaultAsyncSuccessHandler
+     };
+     runChain(aOptions, COMMAND_CHAIN, setDnsFail);
+     return CommandResult::Pending();
+   }
+ 
+   return SUCCESS;
 diff --git a/gecko/dom/system/gonk/NetworkUtils.h b/gecko/dom/system/gonk/NetworkUtils.h
-index 630a912..1ff6272 100644
+index 7e88231..48c75fd 100644
 --- a/gecko/dom/system/gonk/NetworkUtils.h
 +++ b/gecko/dom/system/gonk/NetworkUtils.h
-@@ -296,18 +296,19 @@ private:
+@@ -342,18 +342,19 @@ private:
                 mozilla::dom::NetworkResultOptions& aResult
    static void wifiFirmwareReload(PARAMS);
    static void startAccessPointDriver(PARAMS);
@@ -145,13 +146,13 @@ index 630a912..1ff6272 100644
    static void setAlarm(PARAMS);
    static void setInterfaceUp(PARAMS);
    static void tetherInterface(PARAMS);
-   static void preTetherInterfaceList(PARAMS);
-@@ -315,18 +316,19 @@ private:
-   static void setIpForwardingEnabled(PARAMS);
+   static void addInterfaceToLocalNetwork(PARAMS);
+@@ -364,18 +365,19 @@ private:
    static void tetheringStatus(PARAMS);
    static void stopTethering(PARAMS);
    static void startTethering(PARAMS);
    static void untetherInterface(PARAMS);
+   static void removeInterfaceFromLocalNetwork(PARAMS);
    static void setDnsForwarders(PARAMS);
    static void enableNat(PARAMS);
    static void disableNat(PARAMS);
@@ -164,5 +165,5 @@ index 630a912..1ff6272 100644
    static void updateUpStreamSuccess(PARAMS);
    static void setDhcpServerSuccess(PARAMS);
    static void wifiOperationModeSuccess(PARAMS);
- #undef PARAMS
- 
+   static void clearAddrForInterface(PARAMS);
+   static void createNetwork(PARAMS);

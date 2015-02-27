@@ -1,5 +1,5 @@
 diff --git a/gecko/widget/gonk/nsAppShell.cpp b/gecko/widget/gonk/nsAppShell.cpp
-index 899f2cf..50dec31 100644
+index acc588a..99db4ec 100644
 --- a/gecko/widget/gonk/nsAppShell.cpp
 +++ b/gecko/widget/gonk/nsAppShell.cpp
 @@ -20,12 +20,14 @@
@@ -17,31 +17,30 @@ index 899f2cf..50dec31 100644
  #include <sys/param.h>
  #include <sys/stat.h>
  #include <sys/types.h>
-@@ -72,12 +73,17 @@
- #include "GeckoProfiler.h"
+@@ -73,12 +75,16 @@
  
  // Defines kKeyMapping and GetKeyNameIndex()
  #include "GonkKeyMapping.h"
+ #include "mozilla/layers/CompositorParent.h"
  #include "GeckoTouchDispatcher.h"
  
 +#define FBIOPUT_SET_CURSOR_EN    0x4609
 +#define FBIOPUT_SET_CURSOR_IMG   0x460a
 +#define FBIOPUT_SET_CURSOR_POS   0x460b
 +#define FBIOPUT_SET_CURSOR_CMAP  0x460c
-+
  #define LOG(args...)                                            \
      __android_log_print(ANDROID_LOG_INFO, "Gonk" , ## args)
  #ifdef VERBOSE_LOG_ENABLED
  # define VERBOSE_LOG(args...)                           \
      __android_log_print(ANDROID_LOG_INFO, "Gonk" , ## args)
  #else
-@@ -380,24 +386,1149 @@ updateHeadphoneSwitch()
+@@ -380,25 +386,1149 @@ updateHeadphoneSwitch()
+         return;
      }
  
      event.device() = hal::SWITCH_HEADPHONES;
      NS_DispatchToMainThread(new SwitchEventRunnable(event));
  }
- 
 +unsigned char cursorImg_0[256] = {              //landscape cursor image
 +0xfd, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 +0xf5, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
@@ -1135,7 +1134,7 @@ index 899f2cf..50dec31 100644
 + 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
 +};
 +static int32_t old_orientation = DISPLAY_ORIENTATION_0;
-+
+ 
  class GeckoPointerController : public PointerControllerInterface {
      float mX;
      float mY;
@@ -1186,7 +1185,7 @@ index 899f2cf..50dec31 100644
      virtual void move(float deltaX, float deltaY);
      virtual void setButtonState(int32_t buttonState);
      virtual int32_t getButtonState() const;
-@@ -406,12 +1537,20 @@ public:
+@@ -407,12 +1537,20 @@ public:
      virtual void fade(Transition transition) {}
      virtual void unfade(Transition transition) {}
      virtual void setPresentation(Presentation presentation) {}
@@ -1207,7 +1206,7 @@ index 899f2cf..50dec31 100644
  GeckoPointerController::getBounds(float* outMinX,
                                    float* outMinY,
                                    float* outMaxX,
-@@ -432,12 +1571,50 @@ GeckoPointerController::move(float deltaX, float deltaY)
+@@ -433,12 +1571,50 @@ GeckoPointerController::move(float deltaX, float deltaY)
  {
      float minX, minY, maxX, maxY;
      getBounds(&minX, &minY, &maxX, &maxY);

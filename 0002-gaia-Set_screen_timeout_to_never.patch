@@ -1,13 +1,13 @@
 diff --git a/gaia/build/settings.js b/gaia/build/settings.js
-index 58e5b4e..504e2c8 100644
+index 7bab83c..4cad107 100644
 --- a/gaia/build/settings.js
 +++ b/gaia/build/settings.js
-@@ -269,12 +269,13 @@ function execute(config) {
+@@ -293,12 +293,13 @@ function execute(config) {
+   }
  
-   if (config.NO_LOCK_SCREEN) {
-     settings['screen.timeout'] = 0;
-     settings['lockscreen.enabled'] = false;
-     settings['lockscreen.locked'] = false;
+   var screenTimeout = parseInt(config.SCREEN_TIMEOUT);
+   if (screenTimeout >= 0) {
+     settings['screen.timeout'] = screenTimeout;
    }
 +  settings['screen.timeout'] = 0;
  
