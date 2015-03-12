@@ -5,7 +5,7 @@ index 7bab83c..4cad107 100644
 @@ -293,12 +293,13 @@ function execute(config) {
    }
  
-   var screenTimeout = parseInt(config.SCREEN_TIMEOUT);
+   var screenTimeout = parseInt(config.SCREEN_TIMEOUT, 10);
    if (screenTimeout >= 0) {
      settings['screen.timeout'] = screenTimeout;
    }
